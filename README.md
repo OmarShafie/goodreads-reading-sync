@@ -5,7 +5,7 @@ A small, read-only sync that snapshots the public Goodreads shelves for the prof
 
 ## What it tracks
 
-The daily sync prioritizes the custom shelves **`1st priority`** and **`next`**, and also captures:
+The daily sync prioritizes the custom shelves **`1st_priority`** and **`next`**, and also captures:
 
 - `currently-reading`
 - `to-read`
