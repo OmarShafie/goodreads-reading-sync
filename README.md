@@ -10,6 +10,7 @@ The daily sync prioritizes the custom shelves **`1st_priority`** and **`next`**,
 - `currently-reading`
 - `to-read`
 - `read`
+- `audio` — a dedicated shelf for books intended for audiobook listening
 
 It writes:
 
@@ -22,7 +23,7 @@ The workflow runs daily at 05:17 UTC and can also be started manually from the *
 
 Goodreads' retired public API is not used. The script reads the legacy public shelf RSS feeds, which do not require API keys for public shelves. Custom shelf names are URL-encoded automatically.
 
-The script fetches all configured shelves before writing files. If any shelf request fails, the run fails and the last successful snapshot is preserved. It never writes to Goodreads.
+The snapshot includes each book’s `tags`/`shelves` membership inferred from the configured shelf feeds, including `audio`. It also stores a `progress` object only when the RSS feed exposes recognizable progress fields; the script never estimates progress. Goodreads public RSS may not expose current page or percentage complete, so these fields can remain null.\n\nThe script fetches all configured shelves before writing files. If any shelf request fails, the run fails and the last successful snapshot is preserved. It never writes to Goodreads.
 
 ## First run
 
