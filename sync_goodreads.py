@@ -17,7 +17,7 @@ from pathlib import Path
 
 USER_ID = os.environ.get("GOODREADS_USER_ID", "34901135")
 SHELVES = [
-    "1st priority",
+    "1st_priority",
     "next",
     "currently-reading",
     "to-read",
@@ -118,6 +118,14 @@ def main() -> None:
         print(f"Fetching Goodreads shelf: {shelf}")
         shelves[shelf] = fetch_shelf(shelf)
         print(f"  Retrieved {len(shelves[shelf])} unique books")
+        # This is an intentionally small, curated queue. Goodreads can silently ignore
+        # an unrecognized shelf parameter and return a much larger default list; fail
+        # safely rather than mislabeling that list as the user's priority queue.
+        if shelf == "1st_priority" and len(shelves[shelf]) > 200:
+            raise RuntimeError(
+                "The 1st_priority shelf returned more than 200 books; refusing to save "
+                "a likely unfiltered/default feed. Check the exact Goodreads shelf name."
+            )
         if index < len(SHELVES) - 1:
             time.sleep(DELAY_SECONDS)
 
