@@ -22,6 +22,7 @@ SHELVES = [
     "currently-reading",
     "to-read",
     "read",
+    "audio",
 ]
 BASE_URL = f"https://www.goodreads.com/review/list_rss/{USER_ID}"
 OUT = Path("data/goodreads.json")
@@ -36,6 +37,23 @@ def text(item: ET.Element, tag: str) -> str:
 
 
 def parse_item(item: ET.Element) -> dict:
+    # RSS fields vary by Goodreads endpoint/version. Preserve shelf labels and any
+    # progress fields if Goodreads happens to expose them; never infer a percentage.
+    shelf_text = text(item, "shelves") or text(item, "user_shelves")
+    shelf_names = [part.strip() for part in shelf_text.replace("|", ",").split(",") if part.strip()]
+    shelves_node = item.find("shelves")
+    if shelves_node is not None:
+        for node in shelves_node.findall(".//shelf"):
+            name = (node.get("name") or (node.text or "")).strip()
+            if name:
+                shelf_names.append(name)
+    shelf_names = list(dict.fromkeys(shelf_names))
+    progress = {}
+    for field in ("user_progress", "percent_complete", "reading_progress", "progress", "current_page", "pages_read"):
+        value = text(item, field)
+        if value:
+            progress[field] = value
+
     return {
         "goodreads_book_id": text(item, "book_id"),
         "title": text(item, "title"),
@@ -50,6 +68,9 @@ def parse_item(item: ET.Element) -> dict:
         "cover_url": text(item, "book_image_url"),
         "date_added": text(item, "date_added"),
         "date_read": text(item, "date_read"),
+        "shelves": shelf_names,
+        "tags": shelf_names.copy(),
+        "progress": progress or None,
     }
 
 
@@ -129,10 +150,27 @@ def main() -> None:
         if index < len(SHELVES) - 1:
             time.sleep(DELAY_SECONDS)
 
+    # Derive explicit memberships from the feeds we successfully fetched. This makes
+    # custom shelves such as "audio" visible even when RSS omits shelf metadata on items.
+    memberships: dict[str, set[str]] = {}
+    for shelf_name, books in shelves.items():
+        for book in books:
+            book_id = book["goodreads_book_id"] or book["link"] or book["title"]
+            if book_id:
+                memberships.setdefault(book_id, set()).add(shelf_name)
+    for books in shelves.values():
+        for book in books:
+            book_id = book["goodreads_book_id"] or book["link"] or book["title"]
+            known = set(book.get("tags") or [])
+            known.update(memberships.get(book_id, set()))
+            book["tags"] = sorted(known)
+            book["shelves"] = sorted(set(book.get("shelves") or []) | known)
+
     retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     snapshot = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source": "Goodreads public shelf RSS",
+        "progress_note": "Progress is recorded only when exposed by RSS; public shelf RSS may not provide current reading percentage or page.",
         "goodreads_user_id": USER_ID,
         "retrieved_at_utc": retrieved_at,
         "shelves": shelves,
