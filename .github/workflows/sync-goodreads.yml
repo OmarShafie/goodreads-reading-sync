@@ -41,10 +41,9 @@ jobs:
           import urllib.request
 
           urls = {
-              "own_read_numeric": "https://www.goodreads.com/review/list_rss/34901135?shelf=read&page=1",
-              "own_read_slug": "https://www.goodreads.com/review/list_rss/34901135-omar-shafie?shelf=read&page=1",
-              "known_user_numeric": "https://www.goodreads.com/review/list_rss/1?shelf=read&page=1",
-              "known_user_slug": "https://www.goodreads.com/review/list_rss/1-otis-chandler?shelf=read&page=1",
+              "own_review_list": "https://www.goodreads.com/review/list/34901135?shelf=read",
+              "own_review_list_slug": "https://www.goodreads.com/review/list/34901135-omar-shafie?shelf=read",
+              "own_review_custom": "https://www.goodreads.com/review/list/34901135?shelf=1st_priority",
               "own_profile": "https://www.goodreads.com/user/show/34901135",
           }
           for label, url in urls.items():
