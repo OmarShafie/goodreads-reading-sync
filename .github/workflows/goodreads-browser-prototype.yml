@@ -1,0 +1,40 @@
+name: Goodreads browser prototype (read-only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Read Goodreads shelves (read-only)
+        env:
+          GOODREADS_USER_ID: "34901135"
+          GOODREADS_STORAGE_STATE_JSON: \${{ secrets.GOODREADS_STORAGE_STATE_JSON }}
+        run: python prototype_goodreads.py
+
+      - name: Upload prototype snapshot
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goodreads-read-only-prototype
+          path: prototype-output/goodreads-prototype.json
+          retention-days: 3
