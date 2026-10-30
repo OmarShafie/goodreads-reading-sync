@@ -23,3 +23,17 @@ Do not commit the storage-state file, paste it into chat, or put it in ordinary 
 ## Prototype output
 
 The artifact contains per-shelf lists and a merged book list with Goodreads book IDs, titles, authors, links, shelf memberships, and progress text only when a recognized progress element is present.
+
+## Create the browser state locally
+
+On a trusted computer with Python installed:
+
+\`\`\`bash
+python -m pip install playwright
+python -m playwright install chromium
+python capture_goodreads_state.py
+\`\`\`
+
+A browser opens. Sign in to Goodreads yourself, then return to the terminal and press Enter. The helper saves \`goodreads-storage-state.json\` locally. Copy its complete contents into the GitHub Actions secret named \`GOODREADS_STORAGE_STATE_JSON\`, then securely delete the local file when finished. Never commit it or send it in chat.
+
+The browser state is a session credential. Anyone who obtains it may be able to access your Goodreads account until the session expires or is revoked. Use a private computer and rotate the Goodreads session if you suspect exposure.
