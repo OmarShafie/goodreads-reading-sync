@@ -58,7 +58,7 @@ jobs:
                       body = response.read()
                       if label == "own_profile":
                           import re
-                          links = re.findall(r'href=["\\']([^"\\']+)["\\']', body.decode("utf-8", "replace"))
+                          links = re.findall(r'href="([^"]+)"', body.decode("utf-8", "replace"))
                           relevant = [link for link in links if "rss" in link.lower() or "review/list" in link.lower() or "bookshelf" in link.lower()]
                           print(f"{label}: status={response.status} relevant_links={relevant[:30]}")
                       else:
