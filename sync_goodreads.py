@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Read public Goodreads shelf RSS feeds and save a normalized snapshot.
 
-This is read-only: it never changes Goodreads shelves or reviews. Goodreads may
-reject requests from hosted CI networks; in that case, retry the same public RSS
-URL through cors.dev's HTTPS fetch proxy.
+This is read-only: it never changes Goodreads shelves or reviews.
 """
 from __future__ import annotations
 
@@ -27,13 +25,10 @@ SHELVES = [
     "audio",
 ]
 BASE_URL = f"https://www.goodreads.com/review/list_rss/{USER_ID}"
-PROXY_PREFIX = "https://proxy.cors.dev/"
 OUT = Path("data/goodreads.json")
 HISTORY = Path("data/history.jsonl")
 MAX_PAGES_PER_SHELF = 20
 DELAY_SECONDS = 1.0
-USER_AGENT = "goodreads-reading-sync/1.1 (personal read-only shelf backup)"
-ACCEPT = "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
 
 
 def text(item: ET.Element, tag: str) -> str:
@@ -79,49 +74,38 @@ def parse_item(item: ET.Element) -> dict:
     }
 
 
-def _read_feed(url: str, *, via_proxy: bool) -> list[dict]:
-    request_url = f"{PROXY_PREFIX}{url}" if via_proxy else url
-    request = urllib.request.Request(
-        request_url,
-        headers={"User-Agent": USER_AGENT, "Accept": ACCEPT},
-    )
-    with urllib.request.urlopen(request, timeout=45) as response:
-        body = response.read()
-        status = response.status
-
-    if status != 200:
-        raise RuntimeError(f"HTTP {status}")
-    try:
-        root = ET.fromstring(body)
-    except ET.ParseError as exc:
-        preview = body[:160].decode("utf-8", errors="replace")
-        raise RuntimeError(f"response was not valid RSS/XML ({preview!r})") from exc
-
-    channel = root.find("channel")
-    if channel is None:
-        raise RuntimeError("response did not contain an RSS channel")
-    return [parse_item(node) for node in channel.findall("item")]
-
-
 def fetch_page(shelf: str, page: int) -> list[dict]:
     query = urllib.parse.urlencode({"shelf": shelf, "page": page})
     url = f"{BASE_URL}?{query}"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "goodreads-reading-sync/1.0 (personal read-only shelf backup)",
+            "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+        },
+    )
     try:
-        return _read_feed(url, via_proxy=False)
-    except (urllib.error.URLError, TimeoutError, RuntimeError) as direct_error:
-        print(
-            f"  Direct Goodreads feed unavailable for shelf={shelf!r}, page={page} "
-            f"({type(direct_error).__name__}); retrying through public RSS proxy."
-        )
-        try:
-            books = _read_feed(url, via_proxy=True)
-            print(f"  Proxy fallback succeeded for shelf={shelf!r}, page={page}")
-            return books
-        except (urllib.error.URLError, TimeoutError, RuntimeError) as proxy_error:
-            raise RuntimeError(
-                f"Could not fetch shelf={shelf!r}, page={page} directly "
-                f"({direct_error}) or through RSS proxy ({proxy_error})"
-            ) from proxy_error
+        with urllib.request.urlopen(request, timeout=30) as response:
+            status = response.status
+            body = response.read()
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise RuntimeError(f"Could not fetch shelf={shelf!r}, page={page}: {exc}") from exc
+
+    if status != 200:
+        raise RuntimeError(f"Goodreads returned HTTP {status} for shelf={shelf!r}, page={page}")
+    try:
+        root = ET.fromstring(body)
+    except ET.ParseError as exc:
+        preview = body[:180].decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Response for shelf={shelf!r}, page={page} was not valid RSS/XML: {preview!r}"
+        ) from exc
+
+    # Goodreads may return an HTML sign-in/error page as XML text; require RSS items/channel.
+    channel = root.find("channel")
+    if channel is None:
+        raise RuntimeError(f"Response for shelf={shelf!r}, page={page} did not contain an RSS channel")
+    return [parse_item(node) for node in channel.findall("item")]
 
 
 def fetch_shelf(shelf: str) -> list[dict]:
