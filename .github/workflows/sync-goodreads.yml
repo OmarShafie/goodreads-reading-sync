@@ -34,6 +34,35 @@ jobs:
       - name: Validate sync script syntax
         run: python -m py_compile sync_goodreads.py
 
+      - name: Diagnose Goodreads and proxy access
+        run: |
+          python - <<'PY'
+          import urllib.error
+          import urllib.request
+
+          urls = {
+              "own_read_direct": "https://www.goodreads.com/review/list_rss/34901135?shelf=read&page=1",
+              "own_read_proxy": "https://proxy.cors.dev/https://www.goodreads.com/review/list_rss/34901135?shelf=read&page=1",
+              "known_public_read_proxy": "https://proxy.cors.dev/https://www.goodreads.com/review/list_rss/1?shelf=read&page=1",
+              "own_profile": "https://www.goodreads.com/user/show/34901135",
+          }
+          for label, url in urls.items():
+              request = urllib.request.Request(
+                  url,
+                  headers={"User-Agent": "goodreads-reading-sync/1.1 (read-only connectivity diagnostic)",
+                           "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8"},
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      body = response.read(256)
+                      print(f"{label}: status={response.status} type={response.headers.get('Content-Type')} preview={body[:100]!r}")
+              except urllib.error.HTTPError as exc:
+                  body = exc.read(256)
+                  print(f"{label}: status={exc.code} type={exc.headers.get('Content-Type')} preview={body[:100]!r}")
+              except Exception as exc:
+                  print(f"{label}: error={type(exc).__name__}: {exc}")
+          PY
+
       - name: Fetch Goodreads shelves
         run: python sync_goodreads.py
 
