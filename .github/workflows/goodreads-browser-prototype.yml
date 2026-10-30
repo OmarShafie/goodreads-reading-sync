@@ -28,7 +28,7 @@ jobs:
       - name: Read Goodreads shelves (read-only)
         env:
           GOODREADS_USER_ID: "34901135"
-          GOODREADS_STORAGE_STATE_JSON: \${{ secrets.GOODREADS_STORAGE_STATE_JSON }}
+          GOODREADS_STORAGE_STATE_JSON: ${{ secrets.GOODREADS_STORAGE_STATE_JSON }}
         run: python prototype_goodreads.py
 
       - name: Upload prototype snapshot
