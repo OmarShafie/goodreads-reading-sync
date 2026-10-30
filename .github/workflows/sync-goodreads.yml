@@ -61,6 +61,9 @@ jobs:
                           links = re.findall(r'href="([^"]+)"', body.decode("utf-8", "replace"))
                           relevant = [link for link in links if "rss" in link.lower() or "review/list" in link.lower() or "bookshelf" in link.lower()]
                           print(f"{label}: status={response.status} relevant_links={relevant[:30]}")
+                      elif label.startswith("own_review"):
+                          page = body.decode("utf-8", "replace").lower()
+                          print(f"{label}: status={response.status} type={response.headers.get('Content-Type')} bytes={len(body)} sign_in={'sign in' in page or 'log in' in page} review_rows={page.count('bookalike')}")
                       else:
                           print(f"{label}: status={response.status} type={response.headers.get('Content-Type')} bytes={len(body)} preview={body[:100]!r}")
               except urllib.error.HTTPError as exc:
