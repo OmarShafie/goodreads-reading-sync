@@ -41,9 +41,10 @@ jobs:
           import urllib.request
 
           urls = {
-              "own_read_direct": "https://www.goodreads.com/review/list_rss/34901135?shelf=read&page=1",
-              "own_read_proxy": "https://proxy.cors.dev/https://www.goodreads.com/review/list_rss/34901135?shelf=read&page=1",
-              "known_public_read_proxy": "https://proxy.cors.dev/https://www.goodreads.com/review/list_rss/1?shelf=read&page=1",
+              "own_read_numeric": "https://www.goodreads.com/review/list_rss/34901135?shelf=read&page=1",
+              "own_read_slug": "https://www.goodreads.com/review/list_rss/34901135-omar-shafie?shelf=read&page=1",
+              "known_user_numeric": "https://www.goodreads.com/review/list_rss/1?shelf=read&page=1",
+              "known_user_slug": "https://www.goodreads.com/review/list_rss/1-otis-chandler?shelf=read&page=1",
               "own_profile": "https://www.goodreads.com/user/show/34901135",
           }
           for label, url in urls.items():
@@ -54,8 +55,14 @@ jobs:
               )
               try:
                   with urllib.request.urlopen(request, timeout=30) as response:
-                      body = response.read(256)
-                      print(f"{label}: status={response.status} type={response.headers.get('Content-Type')} preview={body[:100]!r}")
+                      body = response.read()
+                      if label == "own_profile":
+                          import re
+                          links = re.findall(r'href=["\\']([^"\\']+)["\\']', body.decode("utf-8", "replace"))
+                          relevant = [link for link in links if "rss" in link.lower() or "review/list" in link.lower() or "bookshelf" in link.lower()]
+                          print(f"{label}: status={response.status} relevant_links={relevant[:30]}")
+                      else:
+                          print(f"{label}: status={response.status} type={response.headers.get('Content-Type')} bytes={len(body)} preview={body[:100]!r}")
               except urllib.error.HTTPError as exc:
                   body = exc.read(256)
                   print(f"{label}: status={exc.code} type={exc.headers.get('Content-Type')} preview={body[:100]!r}")
