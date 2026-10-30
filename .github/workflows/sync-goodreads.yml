@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "17 5 * * *"
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "sync_goodreads.py"
+      - ".github/workflows/sync-goodreads.yml"
 
 permissions:
   contents: write
@@ -15,7 +21,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -25,43 +31,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Diagnose Goodreads shelf feed responses
-        run: |
-          python - <<'PY'
-          import urllib.error
-          import urllib.parse
-          import urllib.request
-
-          user_id = "34901135"
-          shelves = ["1st_priority", "1st-priority", "next", "currently-reading"]
-          for shelf in shelves:
-              query = urllib.parse.urlencode({"shelf": shelf, "page": 1})
-              url = f"https://www.goodreads.com/review/list_rss/{user_id}?{query}"
-              request = urllib.request.Request(
-                  url,
-                  headers={
-                      "User-Agent": "goodreads-reading-sync/1.0 (personal read-only shelf diagnostic)",
-                      "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-                  },
-              )
-              try:
-                  with urllib.request.urlopen(request, timeout=30) as response:
-                      body = response.read()
-                      print(
-                          f"shelf={shelf!r} status={response.status} "
-                          f"content_type={response.headers.get('Content-Type')} "
-                          f"bytes={len(body)} final_url={response.geturl()}"
-                      )
-              except urllib.error.HTTPError as exc:
-                  body = exc.read()
-                  print(
-                      f"shelf={shelf!r} status={exc.code} "
-                      f"content_type={exc.headers.get('Content-Type')} "
-                      f"bytes={len(body)} final_url={exc.geturl()}"
-                  )
-              except Exception as exc:
-                  print(f"shelf={shelf!r} error={type(exc).__name__}: {exc}")
-          PY
+      - name: Validate sync script syntax
+        run: python -m py_compile sync_goodreads.py
 
       - name: Fetch Goodreads shelves
         run: python sync_goodreads.py
